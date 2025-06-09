@@ -1,6 +1,7 @@
 """
 Reboots Compal GW7557CE router using Selenium
 """
+
 import os
 import sys
 import time
@@ -8,9 +9,11 @@ from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 
-logged_in = False
+logged_in: bool = False
 
-log_file = open(os.path.join(os.path.dirname(__file__), "log.txt"), "a")
+log_file = open(
+    os.path.join(os.path.dirname(__file__), "log.txt"), "a", encoding="utf-8"
+)
 log_file.write(f"\n [{datetime.now()}]")
 
 if len(sys.argv) < 2:
@@ -38,7 +41,9 @@ while True:
         "Istnieje inna aktywna sesja zarządzania ustawieniami urządzenia"
         in driver.page_source
     ):
-        log_file.write("Istnieje inna aktywna sesja zarządzania ustawieniami urządzenia\n")
+        log_file.write(
+            "Istnieje inna aktywna sesja zarządzania ustawieniami urządzenia\n"
+        )
         log_file.write("Spróbuj ponownie później\n")
         driver.close()
         log_file.close()
