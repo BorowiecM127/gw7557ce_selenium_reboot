@@ -4,91 +4,97 @@ Reboots Compal GW7557CE router using Selenium
 
 import os
 import sys
-import time
 from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-
-logged_in: bool = False
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
 
 log_file = open(
     os.path.join(os.path.dirname(__file__), "log.txt"), "a", encoding="utf-8"
 )
-log_file.write(f"\n [{datetime.now()}]")
+log_file.write(f"[{datetime.now()}]\n")
 
 if len(sys.argv) < 2:
     log_file.write("Usage: python gw7557ce_selenium_reboot.py <password>\n")
     sys.exit(1)
 password = sys.argv[1]
 
-log_file.write("Uruchamianie webdrivera\n")
+log_file.write("Uruchamianie webdrivera.\n")
 options = webdriver.FirefoxOptions()
 options.add_argument("--headless")
 driver = webdriver.Firefox(options=options)
-driver.get("http://192.168.0.1")
-log_file.write("Webdriver uruchomiony\n")
 
-while True:
-    if "Witaj" in driver.page_source:
-        log_file.write("Logowanie\n")
-        password_input = driver.find_element(By.ID, "loginPassword")
-        password_input.send_keys(password)
-        login_button = driver.find_element(By.ID, "c_36")
-        login_button.click()
-        time.sleep(1)
+try:
+    driver.get("http://192.168.0.1")
+    log_file.write("Webdriver uruchomiony.\n")
 
-    if (
-        "Istnieje inna aktywna sesja zarządzania ustawieniami urządzenia"
-        in driver.page_source
-    ):
-        log_file.write(
-            "Istnieje inna aktywna sesja zarządzania ustawieniami urządzenia\n"
+    wait = WebDriverWait(driver, 10)
+    wait.until(
+        EC.text_to_be_present_in_element(
+            (By.TAG_NAME, "body"), "Zaloguj się, aby uzyskać dostęp"
+        ),
+        "Nie można znaleźć strony logowania do routera. Sprawdź połączenie z routerem.",
+    )
+
+    wait.until(
+        EC.presence_of_element_located((By.ID, "loginPassword")),
+        "Nie można znaleźć pola hasła do logowania.",
+    ).send_keys(password)
+
+    wait.until(
+        EC.element_to_be_clickable((By.ID, "c_88")),
+        "Nie można znaleźć przycisku logowania.",
+    ).click()
+
+    try:
+        logged_in_page = wait.until(
+            EC.any_of(
+                EC.text_to_be_present_in_element(
+                    (By.TAG_NAME, "body"), "Przegląd statusu routera"
+                ),
+                EC.text_to_be_present_in_element(
+                    (By.TAG_NAME, "body"),
+                    "Mogą występować problemy z działaniem usługi",
+                ),
+            ),
+            "Nie można znaleźć strony głównej routera po zalogowaniu.",
         )
-        log_file.write("Spróbuj ponownie później\n")
-        driver.close()
-        log_file.close()
-        sys.exit(1)
+    except TimeoutException as e:
+        log_file.write(f"Błąd podczas przetwarzania: {str(e.msg)}\n")
+        if "Zablokowano dostęp do panelu administracyjnego" in driver.page_source:
+            raise TimeoutException(
+                "Zablokowano dostęp do panelu administracyjnego."
+            ) from e
+        if "Podane hasło jest niepoprawne" in driver.page_source:
+            raise TimeoutException("Podane hasło jest niepoprawne.") from e
+        raise TimeoutException("Powód nieznany.") from e
 
-    if "Podane hasło jest niepoprawne" in driver.page_source:
-        log_file.write("Podane hasło jest niepoprawne\n")
-        log_file.write("Użyj poprawnego hasła\n")
-        driver.close()
-        log_file.close()
-        sys.exit(1)
+    wait.until(
+        EC.element_to_be_clickable((By.ID, "c_mu25")),
+        "Nie można znaleźć narzędzi administratora.",
+    ).click()
 
-    if "Mogą występować problemy z działaniem usługi" in driver.page_source:
-        log_file.write("Słabe połączenie z routerem, ponowna próba logowania\n")
-        try_again_button = driver.find_element(By.ID, "c_61")
-        try_again_button.click()
-        continue
+    wait.until(
+        EC.element_to_be_clickable((By.ID, "c_mu27")),
+        "Nie można znaleźć menu `przeładuj i zrestartuj`.",
+    ).click()
 
-    if "Witamy" in driver.page_source:
-        log_file.write("Zalogowano\n")
-        logged_in = True
-        break
+    wait.until(
+        EC.element_to_be_clickable((By.ID, "c_rr14")),
+        "Nie można znaleźć przycisku `Uruchom ponownie`.",
+    ).click()
 
-log_file.write("Znajdowanie narzędzi administratora\n")
-admin_settings_menu = driver.find_element(By.ID, "c_mu25")
-admin_settings_menu.click()
+    wait.until(
+        EC.element_to_be_clickable((By.ID, "c_st28")),
+        "Nie można znaleźć przycisku `Zatwierdź ponowne uruchomienie`.",
+    ).click()
 
-log_file.write("Szukanie menu `przeładuj i zrestartuj`\n")
-restart_menu = driver.find_element(By.ID, "c_mu27")
-restart_menu.click()
-
-log_file.write("Szukanie przycisku `Uruchom ponownie`\n")
-restart_button = driver.find_element(By.ID, "c_rr14")
-restart_button.click()
-
-log_file.write("Zatwierdzanie ponownego uruchomienia\n")
-restart_confirmation_button = driver.find_element(By.ID, "c_st28")
-restart_confirmation_button.click()
-
-if logged_in:
-    log_file.write("Wylogowywanie\n")
-    logout_button = driver.find_element(By.ID, "c_mu30")
-    logout_button.click()
-    time.sleep(1)
-    log_file.write("Wylogowano\n")
-
-driver.close()
-log_file.close()
+except TimeoutException as e:
+    log_file.write(f"Błąd podczas przetwarzania: {str(e.msg)}\n")
+except Exception as e:
+    log_file.write(f"Nieznany błąd: {str(e)}\n")
+finally:
+    driver.quit()
+    log_file.close()
