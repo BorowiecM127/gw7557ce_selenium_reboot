@@ -2,30 +2,26 @@
 Reboots Compal GW7557CE router using Selenium
 """
 
-import os
 import sys
-from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 
-print(f"[{datetime.now()}]\n")
-
 if len(sys.argv) < 2:
-    print("Usage: python gw7557ce_selenium_reboot.py <password>\n")
+    print("Usage: python gw7557ce_selenium_reboot.py <password>")
     sys.exit(1)
 password = sys.argv[1]
 
-print("Uruchamianie webdrivera.\n")
+print("Uruchamianie webdrivera.")
 options = webdriver.FirefoxOptions()
 options.add_argument("--headless")
 driver = webdriver.Firefox(options=options)
 
 try:
+    print("Otwieranie strony logowania do routera.")
     driver.get("http://192.168.0.1")
-    print("Webdriver uruchomiony.\n")
 
     wait = WebDriverWait(driver, 10)
     wait.until(
@@ -59,7 +55,7 @@ try:
             "Nie można znaleźć strony głównej routera po zalogowaniu.",
         )
     except TimeoutException as e:
-        print(f"Błąd podczas przetwarzania: {str(e.msg)}\n")
+        print(f"Błąd podczas przetwarzania: {str(e.msg)}")
         if "Zablokowano dostęp do panelu administracyjnego" in driver.page_source:
             raise TimeoutException(
                 "Zablokowano dostęp do panelu administracyjnego."
@@ -88,9 +84,11 @@ try:
         "Nie można znaleźć przycisku `Zatwierdź ponowne uruchomienie`.",
     ).click()
 
+    print("Router został pomyślnie zrestartowany.")
+
 except TimeoutException as e:
-    print(f"Błąd podczas przetwarzania: {str(e.msg)}\n")
+    print(f"Błąd podczas przetwarzania: {str(e.msg)}")
 except Exception as e:
-    print(f"Nieznany błąd: {str(e)}\n")
+    print(f"Nieznany błąd: {str(e)}")
 finally:
     driver.quit()
