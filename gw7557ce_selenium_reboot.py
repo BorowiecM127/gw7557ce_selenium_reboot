@@ -23,7 +23,7 @@ try:
     print("Otwieranie strony logowania do routera.")
     driver.get("http://192.168.0.1")
 
-    wait = WebDriverWait(driver, 10)
+    wait = WebDriverWait(driver, 30)
     wait.until(
         EC.text_to_be_present_in_element(
             (By.TAG_NAME, "body"), "Zaloguj się, aby uzyskać dostęp"
